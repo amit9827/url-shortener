@@ -1,66 +1,166 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+Here's the complete instruction to set up and use the URL Shortener service:
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+ 
+# URL Shortener Service
 
-## About Laravel
+This is a simple URL shortener service built using Laravel. It allows you to encode and decode URLs via API endpoints. The service temporarily stores URLs using Laravel's caching system, but can be extended to use a database if necessary.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Installation Instructions
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Follow the steps below to get the service up and running:
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Step 1: Install Laravel
 
-## Learning Laravel
+Make sure you have PHP and Composer installed on your system. Then, follow the instructions to install Laravel:
+ 
+composer create-project --prefer-dist laravel/laravel url-shortener
+ 
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### Step 2: Configure Environment
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+Navigate to the project folder:
+ 
+cd url-shortener
+ 
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Set up your environment variables in the `.env` file, setup the CACHE_STORE to use file
+ CACHE_STORE=file
 
-## Laravel Sponsors
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### Step 3: Install Dependencies
 
-### Premium Partners
+Run the following command to install all required dependencies:
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+ 
+composer install
+ 
 
-## Contributing
+### Step 4: Create the Controller
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Run the following Artisan command to create a controller:
 
-## Code of Conduct
+ 
+php artisan make:controller UrlShortenerController
+ 
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+This will generate a controller at `app/Http/Controllers/UrlShortenerController.php`. Open this file and add the following logic for encoding and decoding the URLs.
 
-## Security Vulnerabilities
+#### Modify `UrlShortenerController.php`
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+ 
+<?php
 
-## License
+namespace App\Http\Controllers;
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+
+class UrlShortenerController extends Controller
+{
+    // Encode URL - Shorten the given URL
+    public function encode(Request $request)
+    {
+        $validated = $request->validate([
+            'url' => 'required|url',
+        ]);
+
+        $url = $validated['url'];
+        $shortCode = Str::random(6); // Generate a random 6-character code
+
+        // Store the mapping in cache
+        Cache::put($shortCode, $url, now()->addMinutes(60)); // Cache the URL for 60 minutes
+
+        return response()->json([
+            'shortened_url' => url("/decode/{$shortCode}")
+        ]);
+    }
+
+    // Decode URL - Retrieve the original URL from the short code
+    public function decode($shortCode)
+    {
+        $url = Cache::get($shortCode);
+
+        if (!$url) {
+            return response()->json([
+                'error' => 'URL not found or expired.'
+            ], 404);
+        }
+
+        return response()->json([
+            'original_url' => $url
+        ]);
+    }
+}
+ 
+
+### Step 5: Modify the Routes
+
+Now, modify the `routes/web.php` file to define the routes for encoding and decoding the URLs.
+
+#### Modify `routes/web.php`
+
+ 
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\UrlShortenerController;
+
+// Route to encode a URL (shorten it)
+Route::get('/encode', [UrlShortenerController::class, 'encode']);
+
+// Route to decode a URL (retrieve the original URL using the short code)
+Route::get('/decode/{shortCode}', [UrlShortenerController::class, 'decode']);
+ 
+
+### Step 6: Set Up the Development Server
+
+Run Laravel’s built-in development server:
+ 
+php artisan serve
+ 
+
+This will start the server at `http://127.0.0.1:8000`.
+
+### Step 7: Test the API Endpoints
+
+You can now test the two primary API endpoints for encoding and decoding URLs.
+
+#### Encode a URL (shorten it)
+
+To shorten a URL, use the following `GET` request:
+
+http://127.0.0.1:8000/encode?url=https://example.com 
+
+
+This will return a JSON response like:
+
+ 
+{
+    "shortened_url": "http://127.0.0.1:8000/decode/abc123"
+}
+ 
+
+#### Decode a URL (retrieve the original URL)
+
+To get the original URL, use the `GET` request with the short code:
+ 
+http://127.0.0.1:8000/decode/abc123
+ 
+
+This will return a JSON response like:
+
+ 
+{
+    "original_url": "https://example.com"
+}
+ 
+
+### Step 8: Customize (Optional)
+
+- **Database Integration**: The service uses Laravel's cache for temporary URL storage by default. If you prefer to use a database, you can modify the cache configuration in `config/cache.php` to use a database connection or set up a separate table for URL mappings.
+
+- **Caching System**: If you want to change the cache driver or expiration time, you can adjust the settings in the `.env` file and `config/cache.php`.
+
+### Notes
+This is a basic URL shortener service and can be further extended by adding more features such as rate-limiting, analytics, and user authentication for personalized URLs. 
